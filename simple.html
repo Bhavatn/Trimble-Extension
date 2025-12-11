@@ -100,6 +100,10 @@
                     window.parent,
                     (event, data) => {
                         console.log('Event:', event, data);
+                        // Handle menu clicks
+                        if (event === 'extension.command') {
+                            console.log('Menu clicked:', data.data);
+                        }
                     },
                     30000 // 30 second timeout
                 );
@@ -109,12 +113,33 @@
                 document.getElementById('status').className = 'status success';
                 document.getElementById('buttons').style.display = 'block';
                 
+                // Setup menu so extension appears in left navigation
+                setupMenu();
+                
             } catch (error) {
                 console.error('Error:', error);
                 document.getElementById('status').textContent = '❌ Error: ' + error.message;
                 document.getElementById('status').className = 'status error';
             }
         });
+
+        // Setup menu in left navigation
+        async function setupMenu() {
+            try {
+                if (!API) return;
+                
+                const menuObject = {
+                    title: "Simple Test Extension",
+                    command: "simple_extension_main",
+                    subMenus: []
+                };
+
+                await API.ui.setMenu(menuObject);
+                console.log('Menu setup successfully!');
+            } catch (error) {
+                console.error('Error setting up menu:', error);
+            }
+        }
 
         // Test: Get Project Info
         async function testProject() {
