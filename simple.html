@@ -9,15 +9,15 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            padding: 40px;
-            text-align: center;
+            padding: 20px;
             background: #f5f5f5;
+            margin: 0;
         }
         .container {
-            max-width: 600px;
+            max-width: 1200px;
             margin: 0 auto;
             background: white;
-            padding: 40px;
+            padding: 30px;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
@@ -51,17 +51,13 @@
             border-radius: 5px;
             cursor: pointer;
             font-size: 16px;
-            margin: 10px;
+            margin: 10px 5px;
         }
         button:hover {
             background-color: #0056b3;
         }
-        button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
         .result {
-            margin-top: 20px;
+            margin-top: 15px;
             padding: 15px;
             background: #f8f9fa;
             border-radius: 5px;
@@ -71,10 +67,34 @@
             max-height: 300px;
             overflow-y: auto;
         }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #444;
+        }
+        input[type="text"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 300px;
+            margin-right: 10px;
+        }
+        #mainView, #configView {
+            display: none;
+        }
+        #mainView.active, #configView.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Main View (Default) -->
+    <div id="mainView" class="container">
         <h1>🔧 Simple Extension Test</h1>
         
         <div id="status" class="status connecting">
@@ -89,8 +109,56 @@
         <div id="result" class="result" style="display:none;"></div>
     </div>
 
+    <!-- Config/Settings View -->
+    <div id="configView" class="container" style="text-align: left;">
+        <h1>⚙️ Simple Test Extension - Settings</h1>
+        
+        <div id="configStatus" class="status success" style="display:none;"></div>
+
+        <!-- Project Info Section -->
+        <div class="section">
+            <h2>Example: project.getCurrentProject</h2>
+            <p>Get the current project details.</p>
+            <button onclick="testProjectConfig()">Get Project</button>
+            <div id="projectResult" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- User Settings Section -->
+        <div class="section">
+            <h2>Example: user.getUserSettings</h2>
+            <p>Get the current user settings details.</p>
+            <button onclick="testUserConfig()">Get User Settings</button>
+            <div id="userResult" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- Status Message Section -->
+        <div class="section">
+            <h2>Example: extension.setStatusMessage</h2>
+            <p>Dynamically update the extension status message.</p>
+            <input type="text" id="statusInput" placeholder="Enter status message">
+            <button onclick="updateStatus()">Update</button>
+        </div>
+
+        <!-- Access Token Section -->
+        <div class="section">
+            <h2>Example: extension.requestPermission</h2>
+            <p>Request the accessToken.</p>
+            <button onclick="getAccessToken()">Get accessToken</button>
+            <div id="tokenResult" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- Navigation Section -->
+        <div class="section">
+            <h2>Example: extension.goTo</h2>
+            <p>Go to a specific route/page.</p>
+            <button onclick="goToSettings()">Go to Project Settings</button>
+            <button onclick="goToExtensions()">Go to Extensions Page</button>
+        </div>
+    </div>
+
     <script>
         let API = null;
+        let isConfigMode = false;
 
         // Connect when page loads
         window.addEventListener('DOMContentLoaded', async function() {
@@ -100,18 +168,29 @@
                     window.parent,
                     (event, data) => {
                         console.log('Event:', event, data);
-                        // Handle menu clicks
+                        // Handle menu clicks and config command
                         if (event === 'extension.command') {
-                            console.log('Menu clicked:', data.data);
+                            const command = data.data;
+                            console.log('Command received:', command);
+                            
+                            // Check if it's the config command (settings icon clicked)
+                            if (command === 'simple_extension_config') {
+                                showConfigView();
+                            } else if (command === 'simple_extension_main') {
+                                showMainView();
+                            }
                         }
                     },
                     30000 // 30 second timeout
                 );
 
-                // Success!
-                document.getElementById('status').textContent = '✅ Connected to Trimble Connect!';
-                document.getElementById('status').className = 'status success';
-                document.getElementById('buttons').style.display = 'block';
+                // Check URL parameters or default to main view
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('config') === 'true') {
+                    showConfigView();
+                } else {
+                    showMainView();
+                }
                 
                 // Setup menu so extension appears in left navigation
                 setupMenu();
@@ -122,6 +201,33 @@
                 document.getElementById('status').className = 'status error';
             }
         });
+
+        // Show main view
+        function showMainView() {
+            isConfigMode = false;
+            document.getElementById('mainView').classList.add('active');
+            document.getElementById('configView').classList.remove('active');
+            
+            if (API) {
+                document.getElementById('status').textContent = '✅ Connected to Trimble Connect!';
+                document.getElementById('status').className = 'status success';
+                document.getElementById('buttons').style.display = 'block';
+            }
+        }
+
+        // Show config view
+        function showConfigView() {
+            isConfigMode = true;
+            document.getElementById('configView').classList.add('active');
+            document.getElementById('mainView').classList.remove('active');
+            
+            if (API) {
+                const configStatus = document.getElementById('configStatus');
+                configStatus.style.display = 'block';
+                configStatus.textContent = '✅ Connected to Trimble Connect!';
+                configStatus.className = 'status success';
+            }
+        }
 
         // Setup menu in left navigation
         async function setupMenu() {
@@ -141,7 +247,7 @@
             }
         }
 
-        // Test: Get Project Info
+        // Test: Get Project Info (Main View)
         async function testProject() {
             if (!API) {
                 alert('API not connected!');
@@ -155,7 +261,7 @@
             }
         }
 
-        // Test: Get User Settings
+        // Test: Get User Settings (Main View)
         async function testUser() {
             if (!API) {
                 alert('API not connected!');
@@ -169,13 +275,111 @@
             }
         }
 
-        // Show result
+        // Show result (Main View)
         function showResult(title, data) {
             const resultDiv = document.getElementById('result');
             resultDiv.style.display = 'block';
             resultDiv.innerHTML = '<strong>' + title + '</strong><br><pre>' + JSON.stringify(data, null, 2) + '</pre>';
         }
+
+        // Test: Get Project Info (Config View)
+        async function testProjectConfig() {
+            if (!API) {
+                alert('API not connected!');
+                return;
+            }
+            try {
+                const project = await API.project.getCurrentProject();
+                const resultDiv = document.getElementById('projectResult');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<pre>' + JSON.stringify(project, null, 2) + '</pre>';
+            } catch (error) {
+                const resultDiv = document.getElementById('projectResult');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = 'Error: ' + error.message;
+            }
+        }
+
+        // Test: Get User Settings (Config View)
+        async function testUserConfig() {
+            if (!API) {
+                alert('API not connected!');
+                return;
+            }
+            try {
+                const user = await API.user.getUserSettings();
+                const resultDiv = document.getElementById('userResult');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<pre>' + JSON.stringify(user, null, 2) + '</pre>';
+            } catch (error) {
+                const resultDiv = document.getElementById('userResult');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = 'Error: ' + error.message;
+            }
+        }
+
+        // Update status message
+        async function updateStatus() {
+            if (!API) {
+                alert('API not connected!');
+                return;
+            }
+            try {
+                const message = document.getElementById('statusInput').value;
+                if (message) {
+                    await API.extension.setStatusMessage(message);
+                    alert('Status message updated!');
+                } else {
+                    alert('Please enter a status message');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Get access token
+        async function getAccessToken() {
+            if (!API) {
+                alert('API not connected!');
+                return;
+            }
+            try {
+                const token = await API.extension.requestPermission("accesstoken");
+                const resultDiv = document.getElementById('tokenResult');
+                resultDiv.style.display = 'block';
+                if (token === 'pending') {
+                    resultDiv.innerHTML = 'Waiting for user consent...';
+                } else if (token === 'denied') {
+                    resultDiv.innerHTML = 'Access token request denied';
+                } else {
+                    resultDiv.innerHTML = 'Access Token: Retrieved successfully (hidden for security)';
+                }
+            } catch (error) {
+                const resultDiv = document.getElementById('tokenResult');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = 'Error: ' + error.message;
+            }
+        }
+
+        // Navigate to project settings
+        async function goToSettings() {
+            if (!API) return;
+            try {
+                await API.extension.goTo('/projects/{projectId}/settings');
+            } catch (error) {
+                console.error('Navigation error:', error);
+            }
+        }
+
+        // Navigate to extensions page
+        async function goToExtensions() {
+            if (!API) return;
+            try {
+                await API.extension.goTo('/projects/{projectId}/settings/extensions');
+            } catch (error) {
+                console.error('Navigation error:', error);
+            }
+        }
     </script>
 </body>
 </html>
-
